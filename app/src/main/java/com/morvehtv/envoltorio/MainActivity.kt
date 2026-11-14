@@ -222,7 +222,11 @@ class MainActivity : Activity() {
         // los bordes), letra más grande para leer desde el sofá, más columnas en la
         // cuadrícula y un foco muy visible para el mando.
         private const val ESTILOS_TV = """
-            .hello-movieengine-container { padding-left: 4.5vw !important; padding-right: 4.5vw !important; }
+            .hello-movieengine-container, .movie-engine-container-fluid {
+                padding-left: 7vw !important;
+                padding-right: 7vw !important;
+                box-sizing: border-box !important;
+            }
             body { font-size: 20px !important; }
             .hello-movieengine-container, .movie-engine-library-container { max-width: none !important; width: 100% !important; }
             .movie-engine-card-title, .movie-engine-card-title * {
