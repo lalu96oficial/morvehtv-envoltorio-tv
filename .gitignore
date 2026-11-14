@@ -1,0 +1,9 @@
+# Compilación y artefactos locales
+build/
+.gradle/
+.kotlin/
+.idea/
+*.iml
+local.properties
+*.apk
+*.aab
