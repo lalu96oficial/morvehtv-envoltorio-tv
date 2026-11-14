@@ -231,6 +231,9 @@ class MainActivity : Activity() {
                 box-sizing: border-box !important;
             }
             body { font-size: 20px !important; }
+            .hello-movieengine-header__search-toggle,
+            .hello-movieengine-header__search,
+            .hello-movieengine-header__mobile-toggle { display: none !important; }
             .hello-movieengine-container, .movie-engine-library-container { max-width: none !important; width: 100% !important; }
             .movie-engine-card-title, .movie-engine-card-title * {
                 font-size: 1.1rem !important;
