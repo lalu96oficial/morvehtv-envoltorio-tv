@@ -269,10 +269,11 @@ class MainActivity : Activity() {
             #tv-menu a.tv-menu-link:focus, #tv-menu button:focus, #tv-menu-btn:focus {
                 background: #222; outline: 4px solid #e50914 !important; outline-offset: 2px !important;
             }
-            #tv-menu-salir {
-                margin-top: auto; background: #333; color: #fff; border: 0; border-radius: 8px;
-                padding: 14px; font-size: 20px; font-weight: 700;
+            #tv-salir-btn {
+                margin-left: 12px; background: #333; color: #fff; border: 0; border-radius: 8px;
+                padding: 10px 18px; font-size: 20px; font-weight: 700; align-self: center;
             }
+            #tv-salir-btn:focus { outline: 4px solid #e50914 !important; outline-offset: 4px !important; }
         """
 
         private val INYECTAR_ESTILOS_TV_JS = """
@@ -285,9 +286,9 @@ class MainActivity : Activity() {
             })();
         """
 
-        // Crea el botón Menú junto al logotipo y el panel de categorías. Las categorías
-        // se leen en vivo de la API del sitio (solo las que tienen contenido). El botón
-        // Salir llama al puente nativo AndroidTV.salir().
+        // Crea los botones Menú y Salir junto al logotipo, y el panel de categorías
+        // (secciones de la biblioteca en tv.morvehtv.com). Salir llama al puente nativo
+        // AndroidTV.salir() y queda fuera del panel.
         private val MENU_JS = """
             (function () {
                 if (document.getElementById('tv-menu-btn')) return;
@@ -299,6 +300,15 @@ class MainActivity : Activity() {
                 btn.type = 'button';
                 btn.textContent = 'Menú';
                 logo.insertAdjacentElement('afterend', btn);
+
+                var salir = document.createElement('button');
+                salir.id = 'tv-salir-btn';
+                salir.type = 'button';
+                salir.textContent = 'Salir';
+                salir.onclick = function () {
+                    if (window.AndroidTV) window.AndroidTV.salir();
+                };
+                btn.insertAdjacentElement('afterend', salir);
 
                 var panel = document.createElement('div');
                 panel.id = 'tv-menu';
@@ -319,25 +329,15 @@ class MainActivity : Activity() {
                     var titulo = document.createElement('h2');
                     titulo.textContent = 'CATEGORÍAS';
                     panel.appendChild(titulo);
-                    panel.appendChild(enlace('Inicio', 'https://morvehtv.com/'));
-                    panel.appendChild(enlace('Películas', 'https://morvehtv.com/movies/'));
-                    panel.appendChild(enlace('Series', 'https://morvehtv.com/tv-series/'));
-                    fetch('/wp-json/wp/v2/movie_engine_genre?per_page=100&_fields=name,link,count')
-                        .then(function (r) { return r.json(); })
-                        .then(function (lista) {
-                            lista.filter(function (g) { return g.count > 0; })
-                                 .sort(function (a, b) { return a.name.localeCompare(b.name, 'es'); })
-                                 .forEach(function (g) { panel.insertBefore(enlace(g.name, g.link), salir); });
-                        })
-                        .catch(function () {});
-                    var salir = document.createElement('button');
-                    salir.id = 'tv-menu-salir';
-                    salir.type = 'button';
-                    salir.textContent = 'Salir de la app';
-                    salir.onclick = function () {
-                        if (window.AndroidTV) window.AndroidTV.salir();
-                    };
-                    panel.appendChild(salir);
+                    [
+                        ['Películas', 'https://tv.morvehtv.com/#/categoria/pelicula'],
+                        ['Series', 'https://tv.morvehtv.com/#/categoria/serie'],
+                        ['Películas Anime', 'https://tv.morvehtv.com/#/categoria/anime?sub=pelicula'],
+                        ['Documentales', 'https://tv.morvehtv.com/#/categoria/documental'],
+                        ['Series Anime', 'https://tv.morvehtv.com/#/categoria/anime?sub=serie'],
+                        ['Docuseries', 'https://tv.morvehtv.com/#/categoria/documental?sub=serie'],
+                        ['Programas de TV', 'https://tv.morvehtv.com/#/categoria/programa']
+                    ].forEach(function (c) { panel.appendChild(enlace(c[0], c[1])); });
                 }
                 function abrir() {
                     construir();
