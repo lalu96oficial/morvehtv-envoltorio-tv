@@ -114,6 +114,12 @@ class MainActivity : Activity() {
                 if (request.isForMainFrame && errorResponse.statusCode >= 400) showError()
             }
 
+            // Cada página completa recibe los estilos de TV. Las navegaciones
+            // internas del sitio (AJAX) los conservan porque no recargan el documento.
+            override fun onPageFinished(view: WebView, url: String) {
+                view.evaluateJavascript(INYECTAR_ESTILOS_TV_JS, null)
+            }
+
         }
 
         webView.webChromeClient = object : WebChromeClient() {
@@ -210,6 +216,31 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        // Ajustes visuales para televisor: márgenes seguros (los televisores recortan
+        // los bordes), letra más grande para leer desde el sofá, más columnas en la
+        // cuadrícula y un foco muy visible para el mando.
+        private const val ESTILOS_TV = """
+            .hello-movieengine-container { padding-left: 4.5vw !important; padding-right: 4.5vw !important; }
+            body { font-size: 20px !important; }
+            .hello-movieengine-container, .movie-engine-library-container { max-width: none !important; width: 100% !important; }
+            .movie-engine-card-title { font-size: 1.1rem !important; }
+            a:focus, button:focus, input:focus, [tabindex]:focus {
+                outline: 4px solid #e50914 !important;
+                outline-offset: 4px !important;
+            }
+            .movie-engine-movie-card:focus-within { transform: scale(1.04); transition: transform .15s; }
+        """
+
+        private val INYECTAR_ESTILOS_TV_JS = """
+            (function () {
+                if (document.getElementById('tv-estilos')) return;
+                var s = document.createElement('style');
+                s.id = 'tv-estilos';
+                s.textContent = ${org.json.JSONObject.quote(ESTILOS_TV)};
+                document.head.appendChild(s);
+            })();
+        """
+
         // Devuelve "cerrado" si ha cerrado algo, o "nada" si no había nada abierto.
         private const val CERRAR_SUPERPOSICION_JS = """
             (function () {
