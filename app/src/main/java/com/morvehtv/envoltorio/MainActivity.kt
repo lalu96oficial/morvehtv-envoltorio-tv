@@ -225,7 +225,15 @@ class MainActivity : Activity() {
             .hello-movieengine-container { padding-left: 4.5vw !important; padding-right: 4.5vw !important; }
             body { font-size: 20px !important; }
             .hello-movieengine-container, .movie-engine-library-container { max-width: none !important; width: 100% !important; }
-            .movie-engine-card-title { font-size: 1.1rem !important; }
+            .movie-engine-card-title, .movie-engine-card-title * {
+                font-size: 1.1rem !important;
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                -webkit-line-clamp: unset !important;
+                -webkit-box-orient: horizontal !important;
+                display: block !important;
+            }
             .movie-engine-items-grid {
                 grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important;
                 gap: 24px !important;
