@@ -3,6 +3,9 @@ package com.morvehtv.envoltorio
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.Color
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
@@ -121,11 +124,12 @@ class MainActivity : Activity() {
             override fun onPageFinished(view: WebView, url: String) {
                 view.evaluateJavascript(INYECTAR_ESTILOS_TV_JS, null)
                 view.evaluateJavascript(MENU_JS, null)
+                view.evaluateJavascript(REGISTRO_JS, null)
             }
 
         }
 
-        webView.addJavascriptInterface(PuenteTv(this), "AndroidTV")
+        webView.addJavascriptInterface(PuenteTv(this, webView), "AndroidTV")
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onShowCustomView(view: View, callback: CustomViewCallback) {
@@ -292,6 +296,35 @@ class MainActivity : Activity() {
                 margin-left: 12px; background: #333; color: #fff; border: 0; border-radius: 8px;
                 padding: 10px 18px; font-size: 20px; font-weight: 700; align-self: center;
             }
+            #tv-registro-btn {
+                margin-left: 12px; background: #6d3fd8; color: #fff; border: 0; border-radius: 8px;
+                padding: 10px 18px; font-size: 20px; font-weight: 700; align-self: center;
+            }
+            #tv-registro-btn:focus { outline: 4px solid #e50914 !important; outline-offset: 4px !important; }
+            #tv-registro-overlay {
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10000;
+                background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center;
+            }
+            #tv-registro-overlay[hidden] { display: none; }
+            #tv-registro-form {
+                background: #14141c; padding: 36px; border-radius: 14px; width: 540px;
+                display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;
+            }
+            #tv-registro-form h2 { color: #fff; margin: 0 0 6px 0; font-size: 30px; }
+            #tv-registro-form label { display: flex; flex-direction: column; gap: 6px; color: #ddd; font-size: 18px; }
+            #tv-registro-form input {
+                padding: 12px; font-size: 20px; border-radius: 8px; border: 1px solid #333;
+                background: #0d0d12; color: #fff;
+            }
+            #tv-registro-form input:focus { outline: 4px solid #e50914; outline-offset: 2px; }
+            #tv-registro-form p { color: #ffb4b4; font-size: 18px; min-height: 22px; margin: 0; }
+            #tv-registro-form button {
+                padding: 14px; font-size: 20px; font-weight: 700; border-radius: 8px; border: 0;
+                background: #e50914; color: #fff;
+            }
+            #tv-registro-form button:focus { outline: 4px solid #fff; outline-offset: 2px; }
+            #tv-registro-cancelar { background: #333 !important; }
+            #tv-registro-biblioteca { background: #6d3fd8 !important; }
             #tv-salir-btn:focus { outline: 4px solid #e50914 !important; outline-offset: 4px !important; }
         """
 
@@ -397,9 +430,94 @@ class MainActivity : Activity() {
             })();
         """
 
+        // Botón «Crear cuenta» y formulario de registro (usuario y contraseña) sobre morvehtv.com.
+        // El envío lo hace la app (AndroidTV.registrar) contra el registro de la biblioteca.
+        private val REGISTRO_JS = """
+            (function () {
+                if (document.getElementById('tv-registro-overlay')) return;
+                var cab = document.getElementById('tv-salir-btn');
+                if (!cab) return;
+
+                var boton = document.createElement('button');
+                boton.id = 'tv-registro-btn';
+                boton.type = 'button';
+                boton.textContent = 'Crear cuenta';
+                cab.insertAdjacentElement('afterend', boton);
+
+                var capa = document.createElement('div');
+                capa.id = 'tv-registro-overlay';
+                capa.hidden = true;
+                capa.innerHTML =
+                    '<form id="tv-registro-form" autocomplete="off">' +
+                    '<h2>Crear cuenta</h2>' +
+                    '<label>Usuario<input name="usuario" type="text" required autocomplete="username"></label>' +
+                    '<label>Contraseña<input name="clave" type="password" required autocomplete="new-password"></label>' +
+                    '<label>Repite la contraseña<input name="clave2" type="password" required autocomplete="new-password"></label>' +
+                    '<p id="tv-registro-mensaje" role="status"></p>' +
+                    '<button type="submit" id="tv-registro-enviar">Crear cuenta</button>' +
+                    '<button type="button" id="tv-registro-cancelar">Cancelar</button>' +
+                    '</form>';
+                document.body.appendChild(capa);
+
+                var form = document.getElementById('tv-registro-form');
+                var msg = document.getElementById('tv-registro-mensaje');
+                var enviar = document.getElementById('tv-registro-enviar');
+
+                function abrir() {
+                    capa.hidden = false;
+                    msg.textContent = '';
+                    form.elements['usuario'].focus();
+                }
+                function cerrar() {
+                    capa.hidden = true;
+                    form.reset();
+                    boton.focus();
+                }
+                boton.onclick = abrir;
+                document.getElementById('tv-registro-cancelar').onclick = cerrar;
+                window.tvRegistroCerrar = function () {
+                    if (!capa.hidden) { cerrar(); return true; }
+                    return false;
+                };
+
+                form.onsubmit = function (e) {
+                    e.preventDefault();
+                    var usuario = form.elements['usuario'].value.trim();
+                    var clave = form.elements['clave'].value;
+                    var clave2 = form.elements['clave2'].value;
+                    if (!usuario || !clave) { msg.textContent = 'Escribe usuario y contraseña.'; return; }
+                    if (clave !== clave2) { msg.textContent = 'Las contraseñas no coinciden.'; return; }
+                    if (!window.AndroidTV) { msg.textContent = 'El registro solo está disponible en la app.'; return; }
+                    enviar.disabled = true;
+                    msg.textContent = 'Creando cuenta…';
+                    AndroidTV.registrar(usuario, clave);
+                };
+
+                window.tvRegistroResultado = function (texto) {
+                    var r = JSON.parse(texto);
+                    enviar.disabled = false;
+                    form.elements['clave'].value = '';
+                    form.elements['clave2'].value = '';
+                    if (r.ok) {
+                        msg.textContent = 'Cuenta creada. Ya tienes la sesión iniciada.';
+                        var ir = document.createElement('button');
+                        ir.type = 'button';
+                        ir.id = 'tv-registro-biblioteca';
+                        ir.textContent = 'Ir a la biblioteca';
+                        ir.onclick = function () { location.href = 'https://tv.morvehtv.com/'; };
+                        form.insertBefore(ir, document.getElementById('tv-registro-cancelar'));
+                        ir.focus();
+                    } else {
+                        msg.textContent = r.error;
+                    }
+                };
+            })();
+        """
+
         // Devuelve "cerrado" si ha cerrado algo, o "nada" si no había nada abierto.
         private const val CERRAR_SUPERPOSICION_JS = """
             (function () {
+                if (window.tvRegistroCerrar && window.tvRegistroCerrar()) return 'cerrado';
                 if (window.tvMenuCerrar && window.tvMenuCerrar()) return 'cerrado';
                 var menu = document.querySelector('.hello-movieengine-header__mobile-toggle[aria-expanded="true"]');
                 if (menu) { menu.click(); return 'cerrado'; }
@@ -433,10 +551,58 @@ class MainActivity : Activity() {
     }
 }
 
-// Puente que la página usa para pedir a la app que se cierre (botón «Salir de la app»).
-class PuenteTv(private val actividad: Activity) {
+// Puente que la página usa para pedir cosas a la app: cerrarla y crear una cuenta.
+class PuenteTv(private val actividad: Activity, private val vista: WebView) {
+
     @android.webkit.JavascriptInterface
     fun salir() {
         actividad.runOnUiThread { actividad.finishAffinity() }
+    }
+
+    // Crea la cuenta en la biblioteca (tv.morvehtv.com) y guarda la sesión en el WebView,
+    // para que al abrir la biblioteca el usuario ya esté dentro.
+    @android.webkit.JavascriptInterface
+    fun registrar(nombre: String, password: String) {
+        Thread {
+            val resultado = JSONObject()
+            try {
+                val conexion = URL("https://tv.morvehtv.com/api/registro").openConnection() as HttpURLConnection
+                conexion.requestMethod = "POST"
+                conexion.setRequestProperty("Content-Type", "application/json")
+                conexion.doOutput = true
+                conexion.connectTimeout = 15000
+                conexion.readTimeout = 15000
+                val cuerpo = JSONObject().put("nombre", nombre).put("password", password).toString()
+                conexion.outputStream.use { it.write(cuerpo.toByteArray(Charsets.UTF_8)) }
+
+                val codigo = conexion.responseCode
+                val respuesta = (if (codigo in 200..299) conexion.inputStream else conexion.errorStream)
+                    ?.bufferedReader()?.use { it.readText() } ?: ""
+                val cookie = conexion.getHeaderField("Set-Cookie")
+
+                if (codigo == 201 && cookie != null) {
+                    CookieManager.getInstance().setCookie("https://tv.morvehtv.com", cookie)
+                    CookieManager.getInstance().flush()
+                    resultado.put("ok", true)
+                } else {
+                    val error = try {
+                        JSONObject(respuesta).optString("error", "")
+                    } catch (_: Exception) {
+                        ""
+                    }
+                    resultado.put("ok", false)
+                    resultado.put("error", error.ifEmpty { "No se pudo crear la cuenta" })
+                }
+            } catch (_: Exception) {
+                resultado.put("ok", false)
+                resultado.put("error", "Sin conexión con MorvehTV")
+            }
+            vista.post {
+                vista.evaluateJavascript(
+                    "window.tvRegistroResultado(" + JSONObject.quote(resultado.toString()) + ")",
+                    null
+                )
+            }
+        }.start()
     }
 }
