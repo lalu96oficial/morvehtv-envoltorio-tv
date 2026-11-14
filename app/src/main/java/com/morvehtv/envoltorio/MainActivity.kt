@@ -65,7 +65,7 @@ class MainActivity : Activity() {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
-            webView.loadUrl(BuildConfig.SITE_URL)
+            webView.loadUrl(intent.getStringExtra(EXTRA_URL) ?: BuildConfig.SITE_URL)
         }
     }
 
@@ -178,7 +178,7 @@ class MainActivity : Activity() {
             setOnClickListener {
                 errorView.visibility = View.GONE
                 webView.isFocusable = true
-                webView.loadUrl(BuildConfig.SITE_URL)
+                webView.loadUrl(intent.getStringExtra(EXTRA_URL) ?: BuildConfig.SITE_URL)
             }
         }
         retryButton = retry
@@ -221,6 +221,9 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        // Dirección que abre la web al entrar; por defecto, la portada de morvehtv.com.
+        const val EXTRA_URL = "url_inicial"
+
         // Ajustes visuales para televisor: márgenes seguros (los televisores recortan
         // los bordes), letra más grande para leer desde el sofá, más columnas en la
         // cuadrícula y un foco muy visible para el mando.
@@ -434,6 +437,6 @@ class MainActivity : Activity() {
 class PuenteTv(private val actividad: Activity) {
     @android.webkit.JavascriptInterface
     fun salir() {
-        actividad.runOnUiThread { actividad.finish() }
+        actividad.runOnUiThread { actividad.finishAffinity() }
     }
 }
