@@ -194,12 +194,34 @@ class MainActivity : Activity() {
                 hideVideo()
                 return true
             }
-            if (webView.canGoBack()) {
-                webView.goBack()
-                return true
-            }
+            cerrarSuperposicionOAtras()
+            return true
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    // Atrás primero cierra lo que el sitio tiene abierto (menú lateral, buscador,
+    // ventana modal). Solo si no hay nada abierto vuelve en el historial o sale.
+    private fun cerrarSuperposicionOAtras() {
+        webView.evaluateJavascript(CERRAR_SUPERPOSICION_JS) { resultado ->
+            if (resultado == "\"cerrado\"") return@evaluateJavascript
+            if (webView.canGoBack()) webView.goBack() else finish()
+        }
+    }
+
+    companion object {
+        // Devuelve "cerrado" si ha cerrado algo, o "nada" si no había nada abierto.
+        private const val CERRAR_SUPERPOSICION_JS = """
+            (function () {
+                var menu = document.querySelector('.hello-movieengine-header__mobile-toggle[aria-expanded="true"]');
+                if (menu) { menu.click(); return 'cerrado'; }
+                var buscador = document.querySelector('.hello-movieengine-header__search-close');
+                if (buscador && buscador.offsetParent !== null) { buscador.click(); return 'cerrado'; }
+                var modal = document.querySelector('.movie-engine-close-modal');
+                if (modal && modal.offsetParent !== null) { modal.click(); return 'cerrado'; }
+                return 'nada';
+            })()
+        """
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
