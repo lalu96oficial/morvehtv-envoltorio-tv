@@ -120,9 +120,12 @@ class MainActivity : Activity() {
             // internas del sitio (AJAX) los conservan porque no recargan el documento.
             override fun onPageFinished(view: WebView, url: String) {
                 view.evaluateJavascript(INYECTAR_ESTILOS_TV_JS, null)
+                view.evaluateJavascript(MENU_JS, null)
             }
 
         }
+
+        webView.addJavascriptInterface(PuenteTv(this), "AndroidTV")
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onShowCustomView(view: View, callback: CustomViewCallback) {
@@ -247,6 +250,29 @@ class MainActivity : Activity() {
                 outline-offset: 4px !important;
             }
             .movie-engine-movie-card:focus-within { transform: scale(1.04); transition: transform .15s; }
+            #tv-menu-btn {
+                margin-left: 28px; background: #e50914; color: #fff; border: 0; border-radius: 8px;
+                padding: 10px 18px; font-size: 20px; font-weight: 700; cursor: pointer; align-self: center;
+            }
+            #tv-menu {
+                position: fixed; top: 0; left: 0; bottom: 0; width: 360px; z-index: 9999;
+                background: #0d0d0d; box-shadow: 4px 0 24px rgba(0,0,0,.6);
+                overflow-y: auto; padding: 36px 24px; box-sizing: border-box;
+                display: flex; flex-direction: column; gap: 6px;
+            }
+            #tv-menu[hidden] { display: none; }
+            #tv-menu h2 { color: #fff; font-size: 22px; margin: 0 0 12px 0; letter-spacing: .08em; }
+            #tv-menu a.tv-menu-link {
+                display: block; color: #fff; text-decoration: none; font-size: 20px;
+                padding: 12px 14px; border-radius: 6px;
+            }
+            #tv-menu a.tv-menu-link:focus, #tv-menu button:focus, #tv-menu-btn:focus {
+                background: #222; outline: 4px solid #e50914 !important; outline-offset: 2px !important;
+            }
+            #tv-menu-salir {
+                margin-top: auto; background: #333; color: #fff; border: 0; border-radius: 8px;
+                padding: 14px; font-size: 20px; font-weight: 700;
+            }
         """
 
         private val INYECTAR_ESTILOS_TV_JS = """
@@ -259,9 +285,85 @@ class MainActivity : Activity() {
             })();
         """
 
+        // Crea el botón Menú junto al logotipo y el panel de categorías. Las categorías
+        // se leen en vivo de la API del sitio (solo las que tienen contenido). El botón
+        // Salir llama al puente nativo AndroidTV.salir().
+        private val MENU_JS = """
+            (function () {
+                if (document.getElementById('tv-menu-btn')) return;
+                var logo = document.querySelector('.hello-movieengine-header__logo');
+                if (!logo) return;
+
+                var btn = document.createElement('button');
+                btn.id = 'tv-menu-btn';
+                btn.type = 'button';
+                btn.textContent = 'Menú';
+                logo.insertAdjacentElement('afterend', btn);
+
+                var panel = document.createElement('div');
+                panel.id = 'tv-menu';
+                panel.hidden = true;
+                document.body.appendChild(panel);
+
+                var cargado = false;
+                function enlace(texto, href) {
+                    var a = document.createElement('a');
+                    a.className = 'tv-menu-link';
+                    a.href = href;
+                    a.textContent = texto;
+                    return a;
+                }
+                function construir() {
+                    if (cargado) return;
+                    cargado = true;
+                    var titulo = document.createElement('h2');
+                    titulo.textContent = 'CATEGORÍAS';
+                    panel.appendChild(titulo);
+                    panel.appendChild(enlace('Inicio', 'https://morvehtv.com/'));
+                    panel.appendChild(enlace('Películas', 'https://morvehtv.com/movies/'));
+                    panel.appendChild(enlace('Series', 'https://morvehtv.com/tv-series/'));
+                    fetch('/wp-json/wp/v2/movie_engine_genre?per_page=100&_fields=name,link,count')
+                        .then(function (r) { return r.json(); })
+                        .then(function (lista) {
+                            lista.filter(function (g) { return g.count > 0; })
+                                 .sort(function (a, b) { return a.name.localeCompare(b.name, 'es'); })
+                                 .forEach(function (g) { panel.insertBefore(enlace(g.name, g.link), salir); });
+                        })
+                        .catch(function () {});
+                    var salir = document.createElement('button');
+                    salir.id = 'tv-menu-salir';
+                    salir.type = 'button';
+                    salir.textContent = 'Salir de la app';
+                    salir.onclick = function () {
+                        if (window.AndroidTV) window.AndroidTV.salir();
+                    };
+                    panel.appendChild(salir);
+                }
+                function abrir() {
+                    construir();
+                    panel.hidden = false;
+                    var primero = panel.querySelector('a, button');
+                    if (primero) primero.focus();
+                }
+                function cerrar() {
+                    panel.hidden = true;
+                    btn.focus();
+                }
+                btn.onclick = function () { panel.hidden ? abrir() : cerrar(); };
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && !panel.hidden) cerrar();
+                });
+                window.tvMenuCerrar = function () {
+                    if (!panel.hidden) { cerrar(); return true; }
+                    return false;
+                };
+            })();
+        """
+
         // Devuelve "cerrado" si ha cerrado algo, o "nada" si no había nada abierto.
         private const val CERRAR_SUPERPOSICION_JS = """
             (function () {
+                if (window.tvMenuCerrar && window.tvMenuCerrar()) return 'cerrado';
                 var menu = document.querySelector('.hello-movieengine-header__mobile-toggle[aria-expanded="true"]');
                 if (menu) { menu.click(); return 'cerrado'; }
                 var buscador = document.querySelector('.hello-movieengine-header__search-close');
@@ -291,5 +393,13 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         webView.destroy()
         super.onDestroy()
+    }
+}
+
+// Puente que la página usa para pedir a la app que se cierre (botón «Salir de la app»).
+class PuenteTv(private val actividad: Activity) {
+    @android.webkit.JavascriptInterface
+    fun salir() {
+        actividad.runOnUiThread { actividad.finish() }
     }
 }
