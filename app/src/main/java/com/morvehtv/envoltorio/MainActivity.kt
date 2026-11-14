@@ -269,6 +269,19 @@ class MainActivity : Activity() {
             #tv-menu a.tv-menu-link:focus, #tv-menu button:focus, #tv-menu-btn:focus {
                 background: #222; outline: 4px solid #e50914 !important; outline-offset: 2px !important;
             }
+            #masthead.tv-cabecera-fija, .tv-cabecera-fija {
+                position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important;
+                z-index: 1000 !important; width: 100% !important;
+            }
+            #tv-categorias {
+                display: flex; flex-wrap: wrap; gap: 6px 22px;
+                padding: 6px 7vw 12px; box-sizing: border-box;
+            }
+            #tv-categorias a {
+                color: #d6d6d6; text-decoration: none; font-size: 18px; font-weight: 600;
+                padding: 4px 8px; border-radius: 6px;
+            }
+            #tv-categorias a:focus { color: #fff; background: #222; outline: 4px solid #e50914 !important; outline-offset: 2px !important; }
             #tv-salir-btn {
                 margin-left: 12px; background: #333; color: #fff; border: 0; border-radius: 8px;
                 padding: 10px 18px; font-size: 20px; font-weight: 700; align-self: center;
@@ -295,6 +308,16 @@ class MainActivity : Activity() {
                 var logo = document.querySelector('.hello-movieengine-header__logo');
                 if (!logo) return;
 
+                var categorias = [
+                    ['Películas', 'https://tv.morvehtv.com/#/categoria/pelicula'],
+                    ['Series', 'https://tv.morvehtv.com/#/categoria/serie'],
+                    ['Películas Anime', 'https://tv.morvehtv.com/#/categoria/anime?sub=pelicula'],
+                    ['Documentales', 'https://tv.morvehtv.com/#/categoria/documental'],
+                    ['Series Anime', 'https://tv.morvehtv.com/#/categoria/anime?sub=serie'],
+                    ['Docuseries', 'https://tv.morvehtv.com/#/categoria/documental?sub=serie'],
+                    ['Programas de TV', 'https://tv.morvehtv.com/#/categoria/programa']
+                ];
+
                 var btn = document.createElement('button');
                 btn.id = 'tv-menu-btn';
                 btn.type = 'button';
@@ -309,6 +332,22 @@ class MainActivity : Activity() {
                     if (window.AndroidTV) window.AndroidTV.salir();
                 };
                 btn.insertAdjacentElement('afterend', salir);
+
+                // Fila de categorías dentro de la cabecera, visible sin abrir el menú.
+                var cabecera = document.getElementById('masthead') || logo.closest('header');
+                var fila = document.createElement('nav');
+                fila.id = 'tv-categorias';
+                fila.setAttribute('aria-label', 'Categorías');
+                categorias.forEach(function (c) { fila.appendChild(enlace(c[0], c[1])); });
+                cabecera.appendChild(fila);
+
+                // La cabecera se queda fija arriba; el contenido empieza justo debajo.
+                cabecera.classList.add('tv-cabecera-fija');
+                function ajustarAltura() {
+                    document.body.style.paddingTop = cabecera.offsetHeight + 'px';
+                }
+                ajustarAltura();
+                window.addEventListener('resize', ajustarAltura);
 
                 var panel = document.createElement('div');
                 panel.id = 'tv-menu';
@@ -329,15 +368,7 @@ class MainActivity : Activity() {
                     var titulo = document.createElement('h2');
                     titulo.textContent = 'CATEGORÍAS';
                     panel.appendChild(titulo);
-                    [
-                        ['Películas', 'https://tv.morvehtv.com/#/categoria/pelicula'],
-                        ['Series', 'https://tv.morvehtv.com/#/categoria/serie'],
-                        ['Películas Anime', 'https://tv.morvehtv.com/#/categoria/anime?sub=pelicula'],
-                        ['Documentales', 'https://tv.morvehtv.com/#/categoria/documental'],
-                        ['Series Anime', 'https://tv.morvehtv.com/#/categoria/anime?sub=serie'],
-                        ['Docuseries', 'https://tv.morvehtv.com/#/categoria/documental?sub=serie'],
-                        ['Programas de TV', 'https://tv.morvehtv.com/#/categoria/programa']
-                    ].forEach(function (c) { panel.appendChild(enlace(c[0], c[1])); });
+                    categorias.forEach(function (c) { panel.appendChild(enlace(c[0], c[1])); });
                 }
                 function abrir() {
                     construir();
