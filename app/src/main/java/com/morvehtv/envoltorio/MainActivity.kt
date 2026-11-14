@@ -43,6 +43,8 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Solo en compilaciones de depuración: permite inspeccionar la página con Chrome DevTools.
+        if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
 
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         setContentView(root)
@@ -224,6 +226,10 @@ class MainActivity : Activity() {
             body { font-size: 20px !important; }
             .hello-movieengine-container, .movie-engine-library-container { max-width: none !important; width: 100% !important; }
             .movie-engine-card-title { font-size: 1.1rem !important; }
+            .movie-engine-items-grid {
+                grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important;
+                gap: 24px !important;
+            }
             a:focus, button:focus, input:focus, [tabindex]:focus {
                 outline: 4px solid #e50914 !important;
                 outline-offset: 4px !important;
